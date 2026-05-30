@@ -1,0 +1,10 @@
+dist/
+bin/
+third_party/whisper.cpp/
+macos/.build/
+Icon.png
+*.app/
+*.exe
+*.tar.xz
+*.log
+.DS_Store
