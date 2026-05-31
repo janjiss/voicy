@@ -1,6 +1,7 @@
 # Voicy
 
 Voicy is a desktop dictation app with a headless Go backend and native frontends, powered by miniaudio and `whisper.cpp`.
+<img width="501" height="591" alt="image" src="https://github.com/user-attachments/assets/4257f25f-ed75-4bf3-b90f-3f7c662e7310" />
 
 The backend is UI-agnostic: it speaks a small newline-delimited JSON protocol over stdio (see `internal/uiproto`). A native frontend spawns the backend and drives it over that protocol. macOS ships a native Swift (AppKit + SwiftUI) frontend today; Linux can add its own frontend later by speaking the same protocol. The core OS integrations stay behind small Go package interfaces.
 
