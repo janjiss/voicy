@@ -55,6 +55,12 @@ func (s *Server) Injector() coreapp.TextInjector {
 	return s.injector
 }
 
+func (s *Server) Clipboard() coreapp.ClipboardWriter {
+	return &Clipboard{emit: func(text string) {
+		s.emit(uiproto.EventCopyText, uiproto.CopyText{Text: text})
+	}}
+}
+
 // Bind attaches the controller the server dispatches commands to.
 func (s *Server) Bind(controller *coreapp.Controller) {
 	s.controller = controller
@@ -237,19 +243,53 @@ func toViewState(snapshot coreapp.Snapshot) uiproto.ViewState {
 func toWireConfig(config coreapp.Config) uiproto.Config {
 	return uiproto.Config{
 		PushToTalkKey:     config.PushToTalkKey,
+		HotkeyMappings:    toWireHotkeyMappings(config.HotkeyMappings),
 		WhisperBinary:     config.WhisperBinary,
 		ModelName:         config.ModelName,
 		AutoInsert:        config.AutoInsert,
 		TransformSelected: config.TransformSelected,
+		RecordingMode:     config.RecordingMode,
+		CopyToClipboard:   config.CopyToClipboard,
+		PauseMusic:        config.PauseMusic,
 	}
 }
 
 func fromWireConfig(config uiproto.Config) coreapp.Config {
 	return coreapp.Config{
 		PushToTalkKey:     config.PushToTalkKey,
+		HotkeyMappings:    fromWireHotkeyMappings(config.HotkeyMappings),
 		WhisperBinary:     config.WhisperBinary,
 		ModelName:         config.ModelName,
 		AutoInsert:        config.AutoInsert,
 		TransformSelected: config.TransformSelected,
+		RecordingMode:     config.RecordingMode,
+		CopyToClipboard:   config.CopyToClipboard,
+		PauseMusic:        config.PauseMusic,
 	}
+}
+
+func toWireHotkeyMappings(mappings []coreapp.HotkeyMapping) []uiproto.HotkeyMapping {
+	result := make([]uiproto.HotkeyMapping, 0, len(mappings))
+	for _, mapping := range mappings {
+		result = append(result, uiproto.HotkeyMapping{
+			ID:    mapping.ID,
+			Keys:  mapping.Keys,
+			Mode:  mapping.Mode,
+			Label: mapping.Label,
+		})
+	}
+	return result
+}
+
+func fromWireHotkeyMappings(mappings []uiproto.HotkeyMapping) []coreapp.HotkeyMapping {
+	result := make([]coreapp.HotkeyMapping, 0, len(mappings))
+	for _, mapping := range mappings {
+		result = append(result, coreapp.HotkeyMapping{
+			ID:    mapping.ID,
+			Keys:  mapping.Keys,
+			Mode:  mapping.Mode,
+			Label: mapping.Label,
+		})
+	}
+	return result
 }

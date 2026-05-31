@@ -5,18 +5,33 @@ import Foundation
 
 struct Config: Codable, Equatable {
     var pushToTalkKey: String
+    var hotkeyMappings: [HotkeyMapping]
     var whisperBinary: String
     var modelName: String
     var autoInsert: Bool
     var transformSelected: Bool
+    var recordingMode: String
+    var copyToClipboard: Bool
+    var pauseMusic: Bool
 
     static let empty = Config(
         pushToTalkKey: "right_option",
+        hotkeyMappings: [HotkeyMapping(id: "default", keys: "right_option", mode: "long_press", label: "Right Option")],
         whisperBinary: "",
         modelName: "ggml-large-v3-turbo-q5_0.bin",
         autoInsert: true,
-        transformSelected: false
+        transformSelected: false,
+        recordingMode: "hold",
+        copyToClipboard: false,
+        pauseMusic: false
     )
+}
+
+struct HotkeyMapping: Codable, Identifiable, Equatable {
+    var id: String
+    var keys: String
+    var mode: String
+    var label: String
 }
 
 struct HistoryEntry: Codable, Identifiable, Equatable {
@@ -100,6 +115,7 @@ enum IncomingEvent {
     case permissions(Permissions)
     case modelProgress(ModelProgress)
     case insertText(String)
+    case copyText(String)
 
     static func decode(_ data: Data) -> IncomingEvent? {
         let decoder = JSONDecoder()
@@ -115,6 +131,8 @@ enum IncomingEvent {
             if let e = try? decoder.decode(EventEnvelope<ModelProgress>.self, from: data) { return .modelProgress(e.payload) }
         case "insertText":
             if let e = try? decoder.decode(EventEnvelope<InsertText>.self, from: data) { return .insertText(e.payload.text) }
+        case "copyText":
+            if let e = try? decoder.decode(EventEnvelope<InsertText>.self, from: data) { return .copyText(e.payload.text) }
         default:
             return nil
         }

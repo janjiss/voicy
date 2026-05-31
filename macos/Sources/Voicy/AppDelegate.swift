@@ -11,9 +11,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let accessibility = AccessibilityManager()
     private let injector = TextInjector()
     private let hotkey = HotkeyTap(key: "right_option")
+    private let music = MusicController()
 
     private var settingsWindow: NSWindow?
     private var cancellables = Set<AnyCancellable>()
+    private var lastHotkeyPresses: [String: Date] = [:]
+    private var activeDoubleTapMapping: String?
+    private var musicPausedForRecording = false
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         setupMenuBar()
@@ -49,6 +53,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 self.injector.insert(text)
                 return
             }
+            if case let .copyText(text) = event {
+                self.copyToPasteboard(text)
+                return
+            }
             self.appState.apply(event)
         }
         ipc.onTerminate = {
@@ -62,8 +70,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func setupAccessibilityAndHotkey() {
-        hotkey.onPress = { [weak self] in self?.ipc.beginRecording() }
-        hotkey.onRelease = { [weak self] in self?.ipc.finishRecording() }
+        hotkey.onPress = { [weak self] mapping in self?.handleHotkeyPress(mapping) }
+        hotkey.onRelease = { [weak self] mapping in self?.handleHotkeyRelease(mapping) }
 
         accessibility.onChange = { [weak self] trusted in
             guard let self else { return }
@@ -81,11 +89,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func observeConfig() {
         appState.$view
-            .map(\.config.pushToTalkKey)
+            .map(\.config.hotkeyMappings)
             .removeDuplicates()
-            .sink { [weak self] key in
+            .sink { [weak self] mappings in
                 guard let self else { return }
-                self.hotkey.setKey(key)
+                self.hotkey.setMappings(mappings)
                 // Rebind the tap so the new key takes effect immediately.
                 if self.hotkey.isRunning {
                     self.hotkey.stop()
@@ -103,6 +111,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             .removeDuplicates()
             .sink { [weak self] state in
                 self?.updateHUD(for: state)
+                self?.updateMusic(for: state)
             }
             .store(in: &cancellables)
     }
@@ -128,6 +137,55 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         default:
             hud.setMode(.idle)
         }
+    }
+
+    private func handleHotkeyPress(_ mapping: HotkeyMapping) {
+        if mapping.mode == "double_tap" {
+            if appState.view.state == "recording", activeDoubleTapMapping == mapping.id {
+                activeDoubleTapMapping = nil
+                lastHotkeyPresses[mapping.id] = nil
+                ipc.finishRecording()
+                return
+            }
+            let now = Date()
+            defer { lastHotkeyPresses[mapping.id] = now }
+            guard let previous = lastHotkeyPresses[mapping.id], now.timeIntervalSince(previous) < 0.45 else { return }
+            if appState.view.state != "recording" {
+                activeDoubleTapMapping = mapping.id
+                ipc.beginRecording()
+            }
+            lastHotkeyPresses[mapping.id] = nil
+            return
+        }
+        ipc.beginRecording()
+    }
+
+    private func handleHotkeyRelease(_ mapping: HotkeyMapping) {
+        guard mapping.mode != "double_tap" else { return }
+        ipc.finishRecording()
+    }
+
+    private func updateMusic(for state: String) {
+        guard appState.view.config.pauseMusic else {
+            if musicPausedForRecording {
+                musicPausedForRecording = false
+                music.resume()
+            }
+            return
+        }
+        if state == "recording" && !musicPausedForRecording {
+            musicPausedForRecording = true
+            music.pause()
+        } else if state != "recording" && musicPausedForRecording {
+            musicPausedForRecording = false
+            music.resume()
+        }
+    }
+
+    private func copyToPasteboard(_ text: String) {
+        let pasteboard = NSPasteboard.general
+        pasteboard.clearContents()
+        pasteboard.setString(text, forType: .string)
     }
 
     // MARK: Settings window

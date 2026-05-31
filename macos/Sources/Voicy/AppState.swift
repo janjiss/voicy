@@ -21,8 +21,8 @@ final class AppState: ObservableObject {
             self.permissions.microphone = permissions.microphone
         case .modelProgress(let progress):
             modelProgress = progress
-        case .insertText:
-            // Handled by AppDelegate, which performs the native paste.
+        case .insertText, .copyText:
+            // Handled by AppDelegate, which performs native pasteboard actions.
             break
         }
     }

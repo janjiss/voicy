@@ -13,6 +13,7 @@ const (
 	EventLevels        = "levels"
 	EventPermissions   = "permissions"
 	EventModelProgress = "modelProgress"
+	EventCopyText      = "copyText"
 	// EventInsertText asks the native frontend to inject text into the active
 	// app. Injection requires Accessibility, which on macOS is held by the
 	// frontend (the process the user actually grants), not the backend helper.
@@ -54,11 +55,22 @@ type CommandPayload struct {
 
 // Config mirrors internal/app.Config on the wire.
 type Config struct {
-	PushToTalkKey     string `json:"pushToTalkKey"`
-	WhisperBinary     string `json:"whisperBinary"`
-	ModelName         string `json:"modelName"`
-	AutoInsert        bool   `json:"autoInsert"`
-	TransformSelected bool   `json:"transformSelected"`
+	PushToTalkKey     string          `json:"pushToTalkKey"`
+	HotkeyMappings    []HotkeyMapping `json:"hotkeyMappings"`
+	WhisperBinary     string          `json:"whisperBinary"`
+	ModelName         string          `json:"modelName"`
+	AutoInsert        bool            `json:"autoInsert"`
+	TransformSelected bool            `json:"transformSelected"`
+	RecordingMode     string          `json:"recordingMode"`
+	CopyToClipboard   bool            `json:"copyToClipboard"`
+	PauseMusic        bool            `json:"pauseMusic"`
+}
+
+type HotkeyMapping struct {
+	ID    string `json:"id"`
+	Keys  string `json:"keys"`
+	Mode  string `json:"mode"`
+	Label string `json:"label"`
 }
 
 // HistoryEntry mirrors internal/app.HistoryEntry on the wire.
@@ -92,6 +104,11 @@ type Permissions struct {
 
 // InsertText is the body of an EventInsertText event.
 type InsertText struct {
+	Text string `json:"text"`
+}
+
+// CopyText is the body of an EventCopyText event.
+type CopyText struct {
 	Text string `json:"text"`
 }
 

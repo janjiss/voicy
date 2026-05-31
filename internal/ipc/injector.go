@@ -17,3 +17,14 @@ func (i *Injector) InsertText(_ context.Context, text string) error {
 	}
 	return nil
 }
+
+type Clipboard struct {
+	emit func(text string)
+}
+
+func (c *Clipboard) CopyText(_ context.Context, text string) error {
+	if c.emit != nil {
+		c.emit(text)
+	}
+	return nil
+}

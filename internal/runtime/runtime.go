@@ -39,6 +39,7 @@ func Run(ctx context.Context) error {
 		Recorder:    audio.NewRecorder(),
 		Transcriber: whisper,
 		Injector:    server.Injector(),
+		Clipboard:   server.Clipboard(),
 		Transformer: texttransform.NewTransformer(),
 	})
 	server.Bind(controller)

@@ -75,6 +75,7 @@ const (
 	macFlagShift       = 1 << 17
 	macFlagControl     = 1 << 18
 	macFlagOption      = 1 << 19
+	macFlagCommand     = 1 << 20
 	macFlagSecondaryFn = 1 << 23
 )
 
@@ -261,6 +262,8 @@ var macModifierKeys = map[string]macModifierKey{
 	"right_control": {keycode: 62, flag: macFlagControl},
 	"left_option":   {keycode: 58, flag: macFlagOption},
 	"right_option":  {keycode: 61, flag: macFlagOption},
+	"left_command":  {keycode: 55, flag: macFlagCommand},
+	"right_command": {keycode: 54, flag: macFlagCommand},
 	"left_shift":    {keycode: 56, flag: macFlagShift},
 	"right_shift":   {keycode: 60, flag: macFlagShift},
 }

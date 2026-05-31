@@ -21,10 +21,21 @@ const (
 
 type Config struct {
 	PushToTalkKey     string
+	HotkeyMappings    []HotkeyMapping
 	WhisperBinary     string
 	ModelName         string
 	AutoInsert        bool
 	TransformSelected bool
+	RecordingMode     string
+	CopyToClipboard   bool
+	PauseMusic        bool
+}
+
+type HotkeyMapping struct {
+	ID    string
+	Keys  string
+	Mode  string
+	Label string
 }
 
 type Snapshot struct {
@@ -74,6 +85,10 @@ type TextInjector interface {
 	InsertText(context.Context, string) error
 }
 
+type ClipboardWriter interface {
+	CopyText(context.Context, string) error
+}
+
 type SelectionReader interface {
 	SelectedText(context.Context) (string, error)
 }
@@ -100,6 +115,7 @@ type Services struct {
 	Selection   SelectionReader
 	Transformer Transformer
 	Hotkey      HotkeyService
+	Clipboard   ClipboardWriter
 }
 
 type Controller struct {
@@ -350,6 +366,12 @@ func (c *Controller) processAudio(ctx context.Context, audioPath string) {
 		c.setState(StateInserting)
 		if err := c.services.Injector.InsertText(ctx, textToInsert); err != nil {
 			c.fail(fmt.Errorf("insert text: %w", err))
+			return
+		}
+	}
+	if config.CopyToClipboard && c.services.Clipboard != nil {
+		if err := c.services.Clipboard.CopyText(ctx, textToInsert); err != nil {
+			c.fail(fmt.Errorf("copy text: %w", err))
 			return
 		}
 	}
