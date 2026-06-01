@@ -87,6 +87,7 @@ struct ModelProgress: Codable, Equatable {
 
 struct InstalledModels: Codable, Equatable {
     var installed: [String]
+    var llmEngine: Bool
 }
 
 struct InsertText: Codable, Equatable {
@@ -124,7 +125,7 @@ enum IncomingEvent {
     case levels(Levels)
     case permissions(Permissions)
     case modelProgress(ModelProgress)
-    case models([String])
+    case models(InstalledModels)
     case insertText(String)
     case copyText(String)
 
@@ -141,7 +142,7 @@ enum IncomingEvent {
         case "modelProgress":
             if let e = try? decoder.decode(EventEnvelope<ModelProgress>.self, from: data) { return .modelProgress(e.payload) }
         case "models":
-            if let e = try? decoder.decode(EventEnvelope<InstalledModels>.self, from: data) { return .models(e.payload.installed) }
+            if let e = try? decoder.decode(EventEnvelope<InstalledModels>.self, from: data) { return .models(e.payload) }
         case "insertText":
             if let e = try? decoder.decode(EventEnvelope<InsertText>.self, from: data) { return .insertText(e.payload.text) }
         case "copyText":

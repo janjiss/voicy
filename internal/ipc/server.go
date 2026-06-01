@@ -14,6 +14,7 @@ import (
 	"time"
 
 	coreapp "github.com/janis/voicy/internal/app"
+	"github.com/janis/voicy/internal/llm"
 	"github.com/janis/voicy/internal/models"
 	"github.com/janis/voicy/internal/permissions"
 	"github.com/janis/voicy/internal/settings"
@@ -91,7 +92,14 @@ func (s *Server) run(ctx context.Context) error {
 }
 
 func (s *Server) emitModels() {
-	s.emit(uiproto.EventModels, uiproto.Models{Installed: s.models.InstalledModels()})
+	binary := ""
+	if s.controller != nil {
+		binary = s.controller.Snapshot().Config.LLMBinary
+	}
+	s.emit(uiproto.EventModels, uiproto.Models{
+		Installed: s.models.InstalledModels(),
+		LLMEngine: llm.EngineAvailable(binary),
+	})
 }
 
 func (s *Server) emit(eventType string, payload interface{}) {

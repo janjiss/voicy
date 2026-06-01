@@ -237,6 +237,9 @@ struct SettingsView: View {
         Form {
             Section {
                 Toggle("Enable AI text correction", isOn: configBinding(\.formatWithLLM))
+                if appState.view.config.formatWithLLM {
+                    aiStatusRow
+                }
             } footer: {
                 Text("Runs a local model to fix punctuation, capitalization, and remove filler words from your dictation. Everything stays on your Mac.")
                     .font(.callout)
@@ -247,12 +250,35 @@ struct SettingsView: View {
                 options: llmModelOptions,
                 selection: configBinding(\.llmModelName),
                 binaryBinding: configBinding(\.llmBinary),
-                binaryLabel: "llama-cli binary",
+                binaryLabel: "llama engine binary",
                 downloadInfo: "The selected model downloads on demand and is cached locally on your Mac.",
                 enabled: appState.view.config.formatWithLLM
             )
         }
         .formStyle(.grouped)
+    }
+
+    // aiStatusRow surfaces whether AI correction can actually run, so enabling
+    // the toggle never silently degrades to the rule-based cleanup without the
+    // user knowing why.
+    @ViewBuilder
+    private var aiStatusRow: some View {
+        let status = aiStatus
+        LabeledContent("Status") {
+            Label(status.text, systemImage: status.systemImage)
+                .foregroundStyle(status.color)
+                .labelStyle(.titleAndIcon)
+        }
+    }
+
+    private var aiStatus: (text: String, systemImage: String, color: Color) {
+        if !appState.llmEngineAvailable {
+            return ("Correction engine unavailable in this build", "exclamationmark.triangle.fill", .red)
+        }
+        if !appState.installedModels.contains(appState.view.config.llmModelName) {
+            return ("Model not downloaded — download it below", "arrow.down.circle", .orange)
+        }
+        return ("Ready — corrections run locally", "checkmark.circle.fill", .green)
     }
 
     // MARK: Permissions

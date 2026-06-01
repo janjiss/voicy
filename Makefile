@@ -2,7 +2,7 @@ APP_NAME := Voicy
 BACKEND := dist/voicy-backend
 ICON := $(CURDIR)/Icon.png
 WHISPER_BIN := bin/whisper-cli
-LLAMA_BIN := bin/llama-cli
+LLAMA_BIN := bin/llama-completion
 
 .PHONY: run backend frontend rec fmt check build test tidy whisper llama macos-app package-macos clean
 
@@ -56,15 +56,19 @@ $(LLAMA_BIN):
 
 llama: $(LLAMA_BIN)
 
-# Assemble the native macOS app (Swift frontend + Go backend helper).
-macos-app:
-	bash scripts/package_macos.sh
-
-package-macos: Icon.png $(WHISPER_BIN) $(LLAMA_BIN)
+# Assemble the complete native macOS app in one shot: Swift frontend + Go
+# backend helper + the bundled whisper.cpp and llama.cpp sidecars. The engine
+# binaries are file targets, so they're compiled only when missing and reused on
+# subsequent builds (fast). There is no separate "build the engines" step: a
+# normal app build is always a complete, engine-included app.
+macos-app: Icon.png $(WHISPER_BIN) $(LLAMA_BIN)
 	bash scripts/bundle_whisper_bin_macos.sh
 	bash scripts/package_macos.sh
 	bash scripts/bundle_whisper_macos.sh
 	bash scripts/bundle_llama_macos.sh
+
+# Backwards-compatible alias; macos-app already produces the full bundle.
+package-macos: macos-app
 
 clean:
 	rm -rf dist $(APP_NAME).app

@@ -1,14 +1,16 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Builds a statically linked llama-cli from llama.cpp. Static linking keeps the
-# llama sidecar self-contained so its ggml libraries can't collide with the ones
+# Builds a statically linked llama-completion from llama.cpp. We use the
+# non-interactive llama-completion tool (not llama-cli, which is now an
+# interactive UI that prints a banner to stdout). Static linking keeps the llama
+# sidecar self-contained so its ggml libraries can't collide with the ones
 # whisper.cpp bundles into the same Resources/ directory.
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 LLAMA_DIR="${ROOT_DIR}/third_party/llama.cpp"
 OUTPUT_DIR="${ROOT_DIR}/bin"
-OUTPUT_BIN="${OUTPUT_DIR}/llama-cli"
+OUTPUT_BIN="${OUTPUT_DIR}/llama-completion"
 
 mkdir -p "${OUTPUT_DIR}" "${ROOT_DIR}/third_party"
 
@@ -26,12 +28,12 @@ cmake -S "${LLAMA_DIR}" -B "${LLAMA_DIR}/build" \
   -DLLAMA_BUILD_TOOLS=ON \
   -DLLAMA_CURL=OFF
 
-cmake --build "${LLAMA_DIR}/build" --config Release --target llama-cli --parallel
+cmake --build "${LLAMA_DIR}/build" --config Release --target llama-completion --parallel
 
-if [[ -x "${LLAMA_DIR}/build/bin/llama-cli" ]]; then
-  cp "${LLAMA_DIR}/build/bin/llama-cli" "${OUTPUT_BIN}"
+if [[ -x "${LLAMA_DIR}/build/bin/llama-completion" ]]; then
+  cp "${LLAMA_DIR}/build/bin/llama-completion" "${OUTPUT_BIN}"
 else
-  echo "Could not find built llama-cli binary" >&2
+  echo "Could not find built llama-completion binary" >&2
   exit 1
 fi
 

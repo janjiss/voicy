@@ -1,6 +1,7 @@
 dist/
 bin/
 third_party/whisper.cpp/
+third_party/llama.cpp/
 macos/.build/
 Icon.png
 *.app/

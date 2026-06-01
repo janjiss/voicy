@@ -119,9 +119,11 @@ type CopyText struct {
 }
 
 // Models is the body of an EventModels event: the names of models present in
-// the local cache.
+// the local cache, plus whether the local LLM engine binary is available so the
+// frontend can explain why AI correction is or isn't active.
 type Models struct {
 	Installed []string `json:"installed"`
+	LLMEngine bool     `json:"llmEngine"`
 }
 
 // ModelProgress is the body of an EventModelProgress event.

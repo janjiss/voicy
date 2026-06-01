@@ -68,6 +68,15 @@ func (c *Client) Available() bool {
 	return c.models != nil && c.models.Installed(c.modelName)
 }
 
+// EngineAvailable reports whether the llama.cpp sidecar binary can be located.
+// binaryPath is an optional override (the configured LLMBinary); pass "" to
+// only probe the bundled/standard locations.
+func EngineAvailable(binaryPath string) bool {
+	c := &Client{binaryPath: binaryPath}
+	_, err := c.resolveBinary()
+	return err == nil
+}
+
 // Format cleans up a raw transcript: punctuation, casing, filler-word removal,
 // without changing meaning.
 func (c *Client) Format(ctx context.Context, transcript string) (string, error) {
@@ -122,8 +131,7 @@ func (c *Client) run(ctx context.Context, system, user string) (string, error) {
 		"--jinja", // apply the GGUF's built-in chat template (per-family roles)
 		"-sys", system,
 		"-p", user,
-		"-no-cnv",             // single, non-interactive turn
-		"-st",                 // stop after one assistant turn
+		"-st",                 // single conversation turn, then exit
 		"--no-display-prompt", // stdout carries only the generated text
 		"-n", fmt.Sprintf("%d", c.maxTokens),
 		"-c", fmt.Sprintf("%d", c.contextLen),
@@ -153,11 +161,11 @@ func (c *Client) resolveBinary() (string, error) {
 		candidates = append(candidates, c.binaryPath)
 	}
 	candidates = append(candidates, embeddedBinaryCandidates()...)
-	candidates = append(candidates, filepath.Join("Voicy.app", "Contents", "Resources", "llama-cli"))
-	candidates = append(candidates, filepath.Join("bin", "llama-cli"))
-	candidates = append(candidates, "llama-cli")
+	candidates = append(candidates, filepath.Join("Voicy.app", "Contents", "Resources", "llama-completion"))
+	candidates = append(candidates, filepath.Join("bin", "llama-completion"))
+	candidates = append(candidates, "llama-completion")
 	for _, dir := range []string{"/opt/homebrew/bin", "/usr/local/bin"} {
-		candidates = append(candidates, filepath.Join(dir, "llama-cli"))
+		candidates = append(candidates, filepath.Join(dir, "llama-completion"))
 	}
 
 	for _, candidate := range candidates {
@@ -173,7 +181,7 @@ func (c *Client) resolveBinary() (string, error) {
 		}
 	}
 
-	return "", errors.New("llama.cpp binary not found; rebuild the app with bundled llama-cli or set the LLM binary path in settings")
+	return "", errors.New("llama.cpp binary not found; rebuild the app with bundled llama-completion or set the LLM binary path in settings")
 }
 
 func embeddedBinaryCandidates() []string {
@@ -183,9 +191,9 @@ func embeddedBinaryCandidates() []string {
 	}
 	exeDir := filepath.Dir(exe)
 	return []string{
-		filepath.Join(exeDir, "llama-cli"),
-		filepath.Join(exeDir, "..", "Resources", "llama-cli"),
-		filepath.Join(exeDir, "..", "Resources", "bin", "llama-cli"),
+		filepath.Join(exeDir, "llama-completion"),
+		filepath.Join(exeDir, "..", "Resources", "llama-completion"),
+		filepath.Join(exeDir, "..", "Resources", "bin", "llama-completion"),
 	}
 }
 

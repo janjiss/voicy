@@ -9,6 +9,7 @@ final class AppState: ObservableObject {
     @Published var permissions: Permissions = Permissions(accessibility: false, microphone: false)
     @Published var modelProgress: ModelProgress?
     @Published var installedModels: Set<String> = []
+    @Published var llmEngineAvailable: Bool = false
 
     func apply(_ event: IncomingEvent) {
         switch event {
@@ -22,8 +23,9 @@ final class AppState: ObservableObject {
             self.permissions.microphone = permissions.microphone
         case .modelProgress(let progress):
             modelProgress = progress
-        case .models(let names):
-            installedModels = Set(names)
+        case .models(let payload):
+            installedModels = Set(payload.installed)
+            llmEngineAvailable = payload.llmEngine
         case .insertText, .copyText:
             // Handled by AppDelegate, which performs native pasteboard actions.
             break
