@@ -3,12 +3,12 @@ import QuartzCore
 
 // HUDPanel is a small, floating pill near the bottom-center of the screen with
 // an animated audio waveform - styled after dictation overlays like Wispr Flow.
-// While listening the bars react to the live microphone level; while processing
-// they run a calm indeterminate wave. Errors expand the pill into a text label.
+// It only appears while active: listening (bars react to the live mic level),
+// processing (a calm indeterminate wave), or briefly on error (a text label).
+// When idle it is hidden entirely rather than showing a resting handle.
 final class HUDPanel {
     enum Mode: Equatable {
         case hidden
-        case idle
         case listening
         case processing
         case error(String)
@@ -20,9 +20,8 @@ final class HUDPanel {
     private var label: NSTextField?
     private var errorTimer: Timer?
 
-    private enum Content { case waveform, label, handle }
+    private enum Content { case waveform, label }
 
-    private let handleSize = NSSize(width: 40, height: 5)
     private let compactSize = NSSize(width: 104, height: 34)
     private let labelFont = NSFont.systemFont(ofSize: 12.5, weight: .medium)
 
@@ -39,11 +38,6 @@ final class HUDPanel {
         case .hidden:
             waveform?.stop()
             panel?.orderOut(nil)
-        case .idle:
-            ensureCreated()
-            waveform?.stop()
-            layout(for: handleSize, content: .handle)
-            present(alpha: 0.4)
         case .listening:
             ensureCreated()
             layout(for: compactSize, content: .waveform)
@@ -60,9 +54,9 @@ final class HUDPanel {
             layout(for: errorSize(for: text), content: .label)
             waveform?.stop()
             present(alpha: 1.0)
-            // Errors are transient: fall back to the resting handle shortly.
+            // Errors are transient: dismiss the pill shortly after showing.
             errorTimer = Timer.scheduledTimer(withTimeInterval: 4.0, repeats: false) { [weak self] _ in
-                self?.setMode(.idle)
+                self?.setMode(.hidden)
             }
         }
     }
@@ -96,7 +90,7 @@ final class HUDPanel {
         if let screen = NSScreen.main {
             let visible = screen.visibleFrame
             let centerX = visible.midX
-            let centerY = visible.minY + 78
+            let centerY = visible.minY + 52
             panel.setFrame(
                 NSRect(x: centerX - size.width / 2, y: centerY - size.height / 2, width: size.width, height: size.height),
                 display: true
@@ -117,8 +111,6 @@ final class HUDPanel {
         case .waveform:
             let wfWidth = waveform.intrinsicWidth
             waveform.frame = NSRect(x: (size.width - wfWidth) / 2, y: 0, width: wfWidth, height: size.height)
-        case .handle:
-            break
         }
     }
 

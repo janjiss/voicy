@@ -80,10 +80,18 @@ func (s *Server) run(ctx context.Context) error {
 	go s.streamLevels(ctx)
 	go s.streamPermissions(ctx)
 
+	// Tell the frontend which models are already cached so it doesn't show a
+	// download affordance/progress for them.
+	s.emitModels()
+
 	// Reading stdin drives the lifetime: when the frontend closes the pipe we
 	// shut down the backend.
 	s.readCommands(ctx, cancel)
 	return nil
+}
+
+func (s *Server) emitModels() {
+	s.emit(uiproto.EventModels, uiproto.Models{Installed: s.models.InstalledModels()})
 }
 
 func (s *Server) emit(eventType string, payload interface{}) {
@@ -219,6 +227,9 @@ func (s *Server) downloadModel(ctx context.Context, name string) {
 		progress.Error = err.Error()
 	}
 	s.emit(uiproto.EventModelProgress, progress)
+	// Refresh installed state so a freshly downloaded model is now marked as
+	// present (and a failed one is not).
+	s.emitModels()
 }
 
 func toViewState(snapshot coreapp.Snapshot) uiproto.ViewState {
@@ -251,6 +262,9 @@ func toWireConfig(config coreapp.Config) uiproto.Config {
 		RecordingMode:     config.RecordingMode,
 		CopyToClipboard:   config.CopyToClipboard,
 		PauseMusic:        config.PauseMusic,
+		FormatWithLLM:     config.FormatWithLLM,
+		LLMModelName:      config.LLMModelName,
+		LLMBinary:         config.LLMBinary,
 	}
 }
 
@@ -265,6 +279,9 @@ func fromWireConfig(config uiproto.Config) coreapp.Config {
 		RecordingMode:     config.RecordingMode,
 		CopyToClipboard:   config.CopyToClipboard,
 		PauseMusic:        config.PauseMusic,
+		FormatWithLLM:     config.FormatWithLLM,
+		LLMModelName:      config.LLMModelName,
+		LLMBinary:         config.LLMBinary,
 	}
 }
 

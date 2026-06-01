@@ -7,9 +7,9 @@ import (
 	coreapp "github.com/janis/voicy/internal/app"
 	"github.com/janis/voicy/internal/audio"
 	"github.com/janis/voicy/internal/ipc"
+	"github.com/janis/voicy/internal/llm"
 	"github.com/janis/voicy/internal/models"
 	"github.com/janis/voicy/internal/settings"
-	texttransform "github.com/janis/voicy/internal/text"
 	"github.com/janis/voicy/internal/transcribe"
 )
 
@@ -40,7 +40,7 @@ func Run(ctx context.Context) error {
 		Transcriber: whisper,
 		Injector:    server.Injector(),
 		Clipboard:   server.Clipboard(),
-		Transformer: texttransform.NewTransformer(),
+		Transformer: llm.NewTransformer(modelManager),
 	})
 	server.Bind(controller)
 

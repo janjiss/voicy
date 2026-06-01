@@ -2,8 +2,9 @@ APP_NAME := Voicy
 BACKEND := dist/voicy-backend
 ICON := $(CURDIR)/Icon.png
 WHISPER_BIN := bin/whisper-cli
+LLAMA_BIN := bin/llama-cli
 
-.PHONY: run backend frontend rec check build test tidy whisper macos-app package-macos clean
+.PHONY: run backend frontend rec fmt check build test tidy whisper llama macos-app package-macos clean
 
 # Dev run: build the Go backend, then launch the Swift frontend pointed at it
 # via the VOICY_BACKEND override so no .app bundle is required.
@@ -19,6 +20,11 @@ frontend:
 
 rec:
 	go run ./cmd/voicyrec
+
+# Console harness for the local LLM correction path. Pipe a transcript in:
+#   echo "um so we should uh ship friday" | make fmt
+fmt:
+	go run ./cmd/voicyfmt
 
 check:
 	go run ./cmd/voicycheck
@@ -45,14 +51,20 @@ $(WHISPER_BIN):
 whisper: $(WHISPER_BIN)
 	bash scripts/bundle_whisper_bin_macos.sh
 
+$(LLAMA_BIN):
+	bash scripts/build_llama_cpp.sh
+
+llama: $(LLAMA_BIN)
+
 # Assemble the native macOS app (Swift frontend + Go backend helper).
 macos-app:
 	bash scripts/package_macos.sh
 
-package-macos: Icon.png $(WHISPER_BIN)
+package-macos: Icon.png $(WHISPER_BIN) $(LLAMA_BIN)
 	bash scripts/bundle_whisper_bin_macos.sh
 	bash scripts/package_macos.sh
 	bash scripts/bundle_whisper_macos.sh
+	bash scripts/bundle_llama_macos.sh
 
 clean:
 	rm -rf dist $(APP_NAME).app

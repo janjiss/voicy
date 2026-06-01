@@ -24,6 +24,11 @@ func DefaultConfig() app.Config {
 		RecordingMode:     "hold",
 		CopyToClipboard:   false,
 		PauseMusic:        false,
+		// LLM correction ships off by default: it's opt-in because it needs a
+		// multi-gigabyte model download. The deterministic rule-based cleanup
+		// always runs regardless.
+		FormatWithLLM: false,
+		LLMModelName:  models.DefaultLLMModelName,
 	}
 }
 
@@ -75,6 +80,10 @@ func migrate(config *app.Config) {
 	// Keep the first-run dictation path boring: selected-text transforms need
 	// stronger active-app tracking than this prototype has today.
 	config.TransformSelected = false
+
+	if config.LLMModelName == "" {
+		config.LLMModelName = models.DefaultLLMModelName
+	}
 }
 
 func recordingModeToMappingMode(mode string) string {

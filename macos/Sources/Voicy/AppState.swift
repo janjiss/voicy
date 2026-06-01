@@ -8,6 +8,7 @@ final class AppState: ObservableObject {
     @Published var levels: Levels = Levels(current: 0, session: 0)
     @Published var permissions: Permissions = Permissions(accessibility: false, microphone: false)
     @Published var modelProgress: ModelProgress?
+    @Published var installedModels: Set<String> = []
 
     func apply(_ event: IncomingEvent) {
         switch event {
@@ -21,6 +22,8 @@ final class AppState: ObservableObject {
             self.permissions.microphone = permissions.microphone
         case .modelProgress(let progress):
             modelProgress = progress
+        case .models(let names):
+            installedModels = Set(names)
         case .insertText, .copyText:
             // Handled by AppDelegate, which performs native pasteboard actions.
             break

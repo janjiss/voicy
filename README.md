@@ -12,6 +12,7 @@ The backend is UI-agnostic: it speaks a small newline-delimited JSON protocol ov
 - Push-to-talk recording flow.
 - Cross-platform microphone capture through miniaudio.
 - `whisper.cpp` sidecar transcription with `large-v3-turbo`.
+- Optional local LLM correction (`llama.cpp` sidecar) for post-formatting and spoken edits, fully on-device.
 - Automatic model download/cache.
 - macOS text insertion through clipboard paste.
 - macOS selected-text transform path.
@@ -62,6 +63,13 @@ go run ./cmd/voicyrec -seconds 5
 
 This records for five seconds, transcribes the clip, and prints the transcript to stdout.
 
+Try the local LLM correction path on its own (downloads the model on first run):
+
+```sh
+echo "um so i think we should uh ship it on friday" | go run ./cmd/voicyfmt
+go run ./cmd/voicyfmt -selected "first thing. second thing." -edit "make this a bullet list"
+```
+
 The app stores settings in the OS config directory and models in the OS cache directory. By default it downloads:
 
 ```text
@@ -90,7 +98,19 @@ Build a release bundle with the bundled Whisper sidecar:
 make package-macos
 ```
 
-`make package-macos` builds `whisper.cpp` under `third_party/whisper.cpp`, assembles `Voicy.app` (Swift frontend as the bundle main executable in `Contents/MacOS/Voicy`, the Go backend in `Contents/MacOS/voicy-backend`), and copies `whisper-cli` into `Voicy.app/Contents/Resources/`. The model itself is still downloaded on demand because `large-v3-turbo` is too large to bundle into the app by default.
+`make package-macos` builds `whisper.cpp` under `third_party/whisper.cpp`, assembles `Voicy.app` (Swift frontend as the bundle main executable in `Contents/MacOS/Voicy`, the Go backend in `Contents/MacOS/voicy-backend`), and copies `whisper-cli` into `Voicy.app/Contents/Resources/`. It also builds a statically linked `llama-cli` from `third_party/llama.cpp` and bundles it alongside `whisper-cli` for the optional LLM correction feature. The models themselves are still downloaded on demand because they are too large to bundle into the app by default.
+
+## AI text correction (optional)
+
+Voicy can run a small local LLM to clean up dictation (punctuation, capitalization, filler-word removal) and to apply spoken edits to selected text. It's off by default and fully on-device.
+
+Enable it in Settings → AI Formatting, then pick and download one of the bundled options:
+
+- `Llama-3.2-3B-Instruct-Q4_K_M.gguf` (~2.0 GB) — recommended default: fastest and lightest.
+- `Qwen3-4B-Q4_K_M.gguf` (~2.5 GB) — best grammar/punctuation accuracy.
+- `gemma-3-4b-it-Q4_K_M.gguf` (~2.5 GB) — strongest multilingual support.
+
+The `llama.cpp` engine (`llama-cli`) is bundled inside the app; only the chosen model is downloaded and cached. When correction is disabled or the model isn't present, Voicy falls back to a deterministic rule-based cleanup, so dictation never depends on the download.
 
 ## Architecture
 
@@ -106,7 +126,8 @@ cmd/voicy               headless Go backend entry point
   internal/audio        microphone capture and WAV output
   internal/models       model download/cache
   internal/transcribe   whisper.cpp sidecar runner
-  internal/text         cleanup and transform pipeline
+  internal/text         deterministic cleanup and transform pipeline
+  internal/llm          local llama.cpp sidecar for LLM formatting/edits
   internal/hotkey       push-to-talk adapters
   internal/inject       text insertion and selected text adapters
   internal/permissions  platform permission helpers

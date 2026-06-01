@@ -14,6 +14,9 @@ const (
 	EventPermissions   = "permissions"
 	EventModelProgress = "modelProgress"
 	EventCopyText      = "copyText"
+	// EventModels reports which registered models are installed locally so the
+	// frontend can distinguish downloaded models from ones still to fetch.
+	EventModels = "models"
 	// EventInsertText asks the native frontend to inject text into the active
 	// app. Injection requires Accessibility, which on macOS is held by the
 	// frontend (the process the user actually grants), not the backend helper.
@@ -64,6 +67,9 @@ type Config struct {
 	RecordingMode     string          `json:"recordingMode"`
 	CopyToClipboard   bool            `json:"copyToClipboard"`
 	PauseMusic        bool            `json:"pauseMusic"`
+	FormatWithLLM     bool            `json:"formatWithLLM"`
+	LLMModelName      string          `json:"llmModelName"`
+	LLMBinary         string          `json:"llmBinary"`
 }
 
 type HotkeyMapping struct {
@@ -110,6 +116,12 @@ type InsertText struct {
 // CopyText is the body of an EventCopyText event.
 type CopyText struct {
 	Text string `json:"text"`
+}
+
+// Models is the body of an EventModels event: the names of models present in
+// the local cache.
+type Models struct {
+	Installed []string `json:"installed"`
 }
 
 // ModelProgress is the body of an EventModelProgress event.

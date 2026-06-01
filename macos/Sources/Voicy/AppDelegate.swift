@@ -135,7 +135,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             let message = appState.view.lastError.isEmpty ? "Something went wrong" : truncate(appState.view.lastError, 80)
             hud.setMode(.error(message))
         default:
-            hud.setMode(.idle)
+            hud.setMode(.hidden)
         }
     }
 

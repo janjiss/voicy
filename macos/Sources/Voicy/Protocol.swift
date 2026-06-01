@@ -13,6 +13,9 @@ struct Config: Codable, Equatable {
     var recordingMode: String
     var copyToClipboard: Bool
     var pauseMusic: Bool
+    var formatWithLLM: Bool
+    var llmModelName: String
+    var llmBinary: String
 
     static let empty = Config(
         pushToTalkKey: "right_option",
@@ -23,7 +26,10 @@ struct Config: Codable, Equatable {
         transformSelected: false,
         recordingMode: "hold",
         copyToClipboard: false,
-        pauseMusic: false
+        pauseMusic: false,
+        formatWithLLM: false,
+        llmModelName: "Llama-3.2-3B-Instruct-Q4_K_M.gguf",
+        llmBinary: ""
     )
 }
 
@@ -79,6 +85,10 @@ struct ModelProgress: Codable, Equatable {
     var error: String?
 }
 
+struct InstalledModels: Codable, Equatable {
+    var installed: [String]
+}
+
 struct InsertText: Codable, Equatable {
     var text: String
 }
@@ -114,6 +124,7 @@ enum IncomingEvent {
     case levels(Levels)
     case permissions(Permissions)
     case modelProgress(ModelProgress)
+    case models([String])
     case insertText(String)
     case copyText(String)
 
@@ -129,6 +140,8 @@ enum IncomingEvent {
             if let e = try? decoder.decode(EventEnvelope<Permissions>.self, from: data) { return .permissions(e.payload) }
         case "modelProgress":
             if let e = try? decoder.decode(EventEnvelope<ModelProgress>.self, from: data) { return .modelProgress(e.payload) }
+        case "models":
+            if let e = try? decoder.decode(EventEnvelope<InstalledModels>.self, from: data) { return .models(e.payload.installed) }
         case "insertText":
             if let e = try? decoder.decode(EventEnvelope<InsertText>.self, from: data) { return .insertText(e.payload.text) }
         case "copyText":

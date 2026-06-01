@@ -8,7 +8,47 @@ private let pushToTalkKeys = [
     "left_shift", "right_shift",
     "space", "fn"
 ]
-private let modelNames = ["ggml-large-v3-turbo-q5_0.bin", "ggml-large-v3-turbo.bin"]
+
+// A selectable, downloadable model. Used for both transcription and LLM
+// correction so the two settings panels share one control style. Keep names in
+// sync with the Go internal/models registry.
+struct ModelOption: Identifiable, Hashable {
+    let name: String
+    let title: String
+    let detail: String
+    var id: String { name }
+}
+
+private let transcriptionModelOptions = [
+    ModelOption(
+        name: "ggml-large-v3-turbo-q5_0.bin",
+        title: "Large v3 Turbo (recommended)",
+        detail: "~0.5 GB · quantized, faster and smaller"
+    ),
+    ModelOption(
+        name: "ggml-large-v3-turbo.bin",
+        title: "Large v3 Turbo",
+        detail: "~1.6 GB · full precision, highest quality"
+    ),
+]
+
+private let llmModelOptions = [
+    ModelOption(
+        name: "Llama-3.2-3B-Instruct-Q4_K_M.gguf",
+        title: "Llama 3.2 3B (recommended)",
+        detail: "~2.0 GB · fastest, lightest, broadest testing"
+    ),
+    ModelOption(
+        name: "Qwen3-4B-Q4_K_M.gguf",
+        title: "Qwen3 4B (most accurate)",
+        detail: "~2.5 GB · best grammar/punctuation accuracy"
+    ),
+    ModelOption(
+        name: "gemma-3-4b-it-Q4_K_M.gguf",
+        title: "Gemma 3 4B (multilingual)",
+        detail: "~2.5 GB · strongest across 140+ languages"
+    ),
+]
 
 // SettingsView follows the macOS Human Interface Guidelines for settings windows:
 // a TabView of toolbar tabs, each a grouped Form with sections, LabeledContent
@@ -24,6 +64,8 @@ struct SettingsView: View {
                 .tabItem { Label("General", systemImage: "gearshape") }
             transcriptionTab
                 .tabItem { Label("Transcription", systemImage: "waveform") }
+            aiFormattingTab
+                .tabItem { Label("AI Formatting", systemImage: "sparkles") }
             permissionsTab
                 .tabItem { Label("Permissions", systemImage: "lock.shield") }
             historyTab
@@ -99,32 +141,80 @@ struct SettingsView: View {
 
     private var transcriptionTab: some View {
         Form {
-            Section("Model") {
-                Picker("Model", selection: configBinding(\.modelName)) {
-                    ForEach(modelNames, id: \.self) { Text($0) }
-                }
-                TextField("Whisper binary", text: configBinding(\.whisperBinary), prompt: Text("Bundled"))
-            }
-
-            Section {
-                LabeledContent("Download") {
-                    Button("Download Model") {
-                        ipc.downloadModel(appState.view.config.modelName)
-                    }
-                }
-                if let progress = appState.modelProgress {
-                    ProgressView(value: downloadFraction)
-                    Text(downloadStatus(progress))
-                        .font(.callout)
-                        .foregroundStyle(progress.error != nil ? .red : .secondary)
-                }
-            } footer: {
-                Text("Models download on demand from the whisper.cpp repository and are cached locally.")
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
-            }
+            modelControls(
+                options: transcriptionModelOptions,
+                selection: configBinding(\.modelName),
+                binaryBinding: configBinding(\.whisperBinary),
+                binaryLabel: "Whisper binary",
+                downloadInfo: "Models download on demand and are cached locally on your Mac."
+            )
         }
         .formStyle(.grouped)
+    }
+
+    // MARK: Shared model controls
+
+    // modelControls renders the model picker, download button + progress, and
+    // an advanced binary-path override. Both the Transcription and AI Formatting
+    // tabs use it so the two panels stay visually identical.
+    @ViewBuilder
+    private func modelControls(
+        options: [ModelOption],
+        selection: Binding<String>,
+        binaryBinding: Binding<String>,
+        binaryLabel: String,
+        downloadInfo: String,
+        enabled: Bool = true
+    ) -> some View {
+        Section("Model") {
+            Picker("Model", selection: selection) {
+                ForEach(options) { option in
+                    VStack(alignment: .leading) {
+                        Text(option.title)
+                        Text(option.detail).font(.caption).foregroundStyle(.secondary)
+                    }
+                    .tag(option.name)
+                }
+            }
+            .pickerStyle(.radioGroup)
+            .labelsHidden()
+            .disabled(!enabled)
+        }
+
+        let selected = selection.wrappedValue
+        let isInstalled = appState.installedModels.contains(selected)
+        // Only treat progress as belonging to this control when it's for the
+        // exact model currently selected, so a transcription download never
+        // shows under AI Formatting (or for a different model in the same tab).
+        let active: ModelProgress? = appState.modelProgress.flatMap { $0.name == selected ? $0 : nil }
+
+        Section {
+            LabeledContent(isInstalled ? "Model" : "Download") {
+                Button(isInstalled ? "Re-download" : "Download Model") {
+                    ipc.downloadModel(selected)
+                }
+                .disabled(!enabled)
+            }
+            if let progress = active, let err = progress.error, !err.isEmpty {
+                Text(downloadStatus(progress)).font(.callout).foregroundStyle(.red)
+            } else if let progress = active, !progress.done {
+                ProgressView(value: progress.total > 0 ? min(Double(progress.downloaded) / Double(progress.total), 1) : 0)
+                Text(downloadStatus(progress)).font(.callout).foregroundStyle(.secondary)
+            } else if isInstalled {
+                Label("Downloaded", systemImage: "checkmark.circle.fill")
+                    .foregroundStyle(.green)
+                    .font(.callout)
+            }
+        } footer: {
+            Text(downloadInfo)
+                .font(.callout)
+                .foregroundStyle(.secondary)
+        }
+
+        Section("Advanced") {
+            TextField(binaryLabel, text: binaryBinding, prompt: Text("Bundled"))
+                .disabled(!enabled)
+        }
     }
 
     private var downloadFraction: Double {
@@ -139,6 +229,30 @@ struct SettingsView: View {
             return String(format: "Downloading %@ - %.0f%%", progress.name, downloadFraction * 100)
         }
         return "Downloading \(progress.name)..."
+    }
+
+    // MARK: AI Formatting
+
+    private var aiFormattingTab: some View {
+        Form {
+            Section {
+                Toggle("Enable AI text correction", isOn: configBinding(\.formatWithLLM))
+            } footer: {
+                Text("Runs a local model to fix punctuation, capitalization, and remove filler words from your dictation. Everything stays on your Mac.")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+            }
+
+            modelControls(
+                options: llmModelOptions,
+                selection: configBinding(\.llmModelName),
+                binaryBinding: configBinding(\.llmBinary),
+                binaryLabel: "llama-cli binary",
+                downloadInfo: "The selected model downloads on demand and is cached locally on your Mac.",
+                enabled: appState.view.config.formatWithLLM
+            )
+        }
+        .formStyle(.grouped)
     }
 
     // MARK: Permissions

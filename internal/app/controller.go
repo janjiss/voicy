@@ -29,6 +29,13 @@ type Config struct {
 	RecordingMode     string
 	CopyToClipboard   bool
 	PauseMusic        bool
+	// FormatWithLLM enables local LLM post-formatting of dictated text
+	// (punctuation, casing, removing filler words) and LLM-driven edits.
+	FormatWithLLM bool
+	// LLMModelName selects which downloaded GGUF correction model to use.
+	LLMModelName string
+	// LLMBinary optionally overrides the llama.cpp sidecar binary path.
+	LLMBinary string
 }
 
 type HotkeyMapping struct {
@@ -333,6 +340,29 @@ func (c *Controller) processAudio(ctx context.Context, audioPath string) {
 	}
 	if c.services.Transformer != nil {
 		transcript = c.services.Transformer.CleanupTranscript(transcript)
+
+		// Push current LLM config onto the transformer so runtime config
+		// changes (enable toggle, selected model) take effect immediately.
+		if configurable, ok := c.services.Transformer.(interface {
+			SetLLM(enabled bool, modelName, binary string)
+		}); ok {
+			configurable.SetLLM(config.FormatWithLLM, config.LLMModelName, config.LLMBinary)
+		}
+
+		// Optional LLM post-formatting. Formatting is a nicety, not a
+		// correctness requirement, so a failure falls back to the cleaned
+		// transcript rather than surfacing an error to the user.
+		if config.FormatWithLLM {
+			if formatter, ok := c.services.Transformer.(interface {
+				Format(context.Context, string) (string, error)
+			}); ok {
+				if formatted, ferr := formatter.Format(ctx, transcript); ferr == nil {
+					if formatted = c.services.Transformer.CleanupTranscript(formatted); formatted != "" {
+						transcript = formatted
+					}
+				}
+			}
+		}
 	}
 	if transcript == "" {
 		// No speech recognized: nothing to insert, so quietly return to idle
